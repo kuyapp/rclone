@@ -2,6 +2,7 @@
 package all
 
 import (
+	_ "github.com/rclone/rclone/backend/adrive"
 	// Active file systems
 	_ "github.com/rclone/rclone/backend/alias"
 	_ "github.com/rclone/rclone/backend/amazonclouddrive"

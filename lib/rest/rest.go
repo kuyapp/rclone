@@ -91,6 +91,14 @@ func (api *Client) RemoveHeader(key string) *Client {
 	return api
 }
 
+// GetHeader get header
+func (api *Client) GetHeader(key string) (string, bool) {
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	v, ok := api.headers[key]
+	return v, ok
+}
+
 // SignerFn is used to sign an outgoing request
 type SignerFn func(*http.Request) error
 
@@ -138,16 +146,17 @@ type Opts struct {
 	UserName              string            // username for Basic Auth
 	Password              string            // password for Basic Auth
 	Options               []fs.OpenOption
-	IgnoreStatus          bool         // if set then we don't check error status or parse error body
-	MultipartParams       url.Values   // if set do multipart form upload with attached file
-	MultipartMetadataName string       // ..this is used for the name of the metadata form part if set
-	MultipartContentName  string       // ..name of the parameter which is the attached file
-	MultipartFileName     string       // ..name of the file for the attached file
-	Parameters            url.Values   // any parameters for the final URL
-	TransferEncoding      []string     // transfer encoding, set to "identity" to disable chunked encoding
+	IgnoreStatus          bool       // if set then we don't check error status or parse error body
+	OriginResponse        bool       //
+	MultipartParams       url.Values // if set do multipart form upload with attached file
+	MultipartMetadataName string     // ..this is used for the name of the metadata form part if set
+	MultipartContentName  string     // ..name of the parameter which is the attached file
+	MultipartFileName     string     // ..name of the file for the attached file
+	Parameters            url.Values // any parameters for the final URL
+	TransferEncoding      []string   // transfer encoding, set to "identity" to disable chunked encoding
 	Trailer               *http.Header // set the request trailer
-	Close                 bool         // set to close the connection after this transaction
-	NoRedirect            bool         // if this is set then the client won't follow redirects
+	Close                 bool       // set to close the connection after this transaction
+	NoRedirect            bool       // if this is set then the client won't follow redirects
 }
 
 // Copy creates a copy of the options
@@ -291,10 +300,15 @@ func (api *Client) Call(ctx context.Context, opts *Opts) (resp *http.Response, e
 	}
 	if !opts.IgnoreStatus {
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
-			err = api.errorHandler(resp)
-			if err.Error() == "" {
+			if opts.OriginResponse {
 				// replace empty errors with something
 				err = fmt.Errorf("http error %d: %v", resp.StatusCode, resp.Status)
+			} else {
+				err = api.errorHandler(resp)
+				if err.Error() == "" {
+					// replace empty errors with something
+					err = fmt.Errorf("http error %d: %v", resp.StatusCode, resp.Status)
+				}
 			}
 			return resp, err
 		}
