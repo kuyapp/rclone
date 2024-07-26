@@ -34,7 +34,7 @@ type AccessTokenOut struct {
 }
 
 type DriveIdOut struct {
-	DefaultDriveId string `json:"default_drive_id"`
+	DefaultDriveId string `json:"resource_drive_id"`
 }
 
 // list 查询参数
