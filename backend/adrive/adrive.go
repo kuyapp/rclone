@@ -91,7 +91,7 @@ func NewFs(ctx context.Context, name, root string, m configmap.Mapper) (fs.Fs, e
 		CanHaveEmptyDirectories: true,
 	}).Fill(ctx, f)
 
-	f.reWriteConfig(ctx, name)
+	go f.reWriteConfig(ctx, name)
 	f.dirCache = dircache.New(root, rootId, f)
 	f.getDriveId(ctx)
 	return f, err
@@ -121,7 +121,7 @@ func (f *Fs) reWriteConfig(ctx context.Context, name string) {
 		}
 		sub := time.Until(t)
 		if sub < 0 {
-			sub = 5 * time.Minute
+			sub = 1 * time.Second
 		}
 		trigger := time.After(sub)
 		<-trigger
@@ -160,9 +160,9 @@ func (f *Fs) getAccessToken() error {
 }
 
 func (f *Fs) callJSON(ctx context.Context, opts *rest.Opts, request interface{}, response interface{}) error {
-	if opts != nil {
-		opts.OriginResponse = true
-	}
+	//if opts != nil {
+	//	opts.OriginResponse = true
+	//}
 	if opts.RootURL == rootUrl {
 		f.srv.SetHeader(authorization, f.opt.TokenType+" "+f.opt.AccessToken)
 	}
@@ -259,7 +259,7 @@ func getQrcodeLink(ctx context.Context, clientId, secret string) (*QrcodeLinkOut
 	req := &QrcodeLinkIn{
 		ClientId:     clientId,
 		ClientSecret: secret,
-		Scopes:       []string{"user:base", "user:phone", "file:all:read", "file:all:write"},
+		Scopes:       []string{"user:base", "file:all:read", "file:all:write"},
 	}
 
 	resp := &QrcodeLinkOut{}
@@ -325,6 +325,9 @@ func (f *Fs) List(ctx context.Context, dir string) (entries fs.DirEntries, err e
 	}
 
 	list, err := f.listAll(ctx, directoryID)
+	if err != nil {
+	    return nil, err
+	}
 	for _, info := range list {
 		remote := path.Join(dir, info.Name)
 		if info.Type == itemTypeFolder {
@@ -370,14 +373,14 @@ func (f *Fs) listAll(ctx context.Context, parentFileId string) ([]ItemOut, error
 			break
 		} else {
 			//限流
-			time.Sleep(time.Millisecond * 250)
+			time.Sleep(time.Millisecond * 1000)
 			request.Marker = resp.NextMarker
 		}
 	}
 	return out, nil
 }
 
-// isDirEmpty 判断目录是否为空
+ //isDirEmpty 判断目录是否为空
 func (f *Fs) isDirEmpty(ctx context.Context, parentFileId string) bool {
 	request := ListIn{
 		Limit:        1,
